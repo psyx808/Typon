@@ -1,5 +1,28 @@
-
+#include <locale.h>
 #include "graphics.hpp"
+
+// Key codes for Spanish special characters.
+// These match the Unicode/Latin-1 code points returned by wget_wch()
+// when ncursesw reads the corresponding UTF-8 multibyte sequence
+// (locale must be UTF-8, see Graphics::init_curses()).
+enum {
+    KEY_iexclam    = 0x00A1,  // ¡
+    KEY_iquest     = 0x00BF,  // ¿
+    KEY_Aacute     = 0x00C1,  // Á
+    KEY_Eacute     = 0x00C9,  // É
+    KEY_Iacute     = 0x00CD,  // Í
+    KEY_Ntilde     = 0x00D1,  // Ñ
+    KEY_Oacute     = 0x00D3,  // Ó
+    KEY_Uacute     = 0x00DA,  // Ú
+    KEY_Udiaeresis = 0x00DC,  // Ü
+    KEY_aacute     = 0x00E1,  // á
+    KEY_eacute     = 0x00E9,  // é
+    KEY_iacute     = 0x00ED,  // í
+    KEY_ntilde     = 0x00F1,  // ñ
+    KEY_oacute     = 0x00F3,  // ó
+    KEY_uacute     = 0x00FA,  // ú
+    KEY_udiaeresis = 0x00FC,  // ü
+};
 
 map<int, string> keyboard_lower = {{KEY_1, "1"},
                                    {KEY_2, "2"},
@@ -106,6 +129,11 @@ map<int, string> keyboard_upper = {{KEY_EXCLAMATION, "!"},
 /*--------------------*/
 // curses library initializations
 void Graphics::init_curses() {
+    // enable the user's locale (must be a UTF-8 one, e.g. es_ES.UTF-8)
+    // so that ncurses can correctly render and read multi-byte
+    // characters such as á, é, í, ó, ú, ñ, ¿, ¡, etc.
+    setlocale(LC_ALL, "");
+
     initscr();
     // mute echo
     noecho();
@@ -113,6 +141,9 @@ void Graphics::init_curses() {
     curs_set(0);
     // start color
     start_color();
+    // allow the use of the terminal's default background color.
+    // this is what makes a transparent terminal background
+    use_default_colors();
 }
 
 void Graphics::init_colors() {
@@ -120,13 +151,19 @@ void Graphics::init_colors() {
         Exit(1, "Your terminal does not support color\n");
     }
 
-    init_pair(1, COLOR_RED, COLOR_BLACK);
-    init_pair(2, COLOR_GREEN, COLOR_BLACK);
-    init_pair(3, COLOR_YELLOW, COLOR_BLACK);
-    init_pair(4, COLOR_BLUE, COLOR_BLACK);
-    init_pair(5, COLOR_CYAN, COLOR_BLACK);
-    init_pair(6, COLOR_MAGENTA, COLOR_BLACK);
-    init_pair(7, COLOR_WHITE, COLOR_BLACK);
+    // -1 = terminal's default background color (transparent if the
+    // terminal emulator is configured that way).
+    init_pair(1, COLOR_RED, -1);
+    init_pair(2, COLOR_GREEN, -1);
+    init_pair(3, COLOR_YELLOW, -1);
+    init_pair(4, COLOR_BLUE, -1);
+    init_pair(5, COLOR_CYAN, -1);
+    init_pair(6, COLOR_MAGENTA, -1);
+    init_pair(7, COLOR_WHITE, -1);
+
+    // these pairs are used for highlights / cursors, so they keep a
+    // solid background so they remain clearly visible even on a
+    // transparent terminal.
     init_pair(8, COLOR_WHITE, COLOR_BLUE);
     init_pair(9, COLOR_WHITE, COLOR_RED);
     init_pair(10, COLOR_BLACK, COLOR_GREEN);
@@ -253,6 +290,15 @@ void Graphics::create_windows() {
     info_frame = newwin(info_h, info_w, starty + win_h, startx);
     inner_info_frame =
         newwin(inner_info_h, inner_info_w, starty + win_h + 1, startx + 1);
+
+    /*--------------------*/
+    // make every window's background transparent (use the "white" pair,
+    // which now maps to COLOR_WHITE on the terminal's default/-1
+    // background instead of solid black).
+    wbkgd(text_frame, colors["white"]);
+    wbkgd(inner_text_frame, colors["white"]);
+    wbkgd(info_frame, colors["white"]);
+    wbkgd(inner_info_frame, colors["white"]);
 
     /*--------------------*/
     // paint windows with colors
@@ -450,6 +496,10 @@ void Graphics::init_menu() {
     menu_frame = newwin(menu_h, menu_w, menu_starty, menu_startx);
     inner_menu_frame =
         newwin(inner_menu_h, inner_menu_w, menu_starty + 1, menu_startx + 1);
+
+    // keep the menu's background transparent as well
+    wbkgd(menu_frame, colors["white"]);
+    wbkgd(inner_menu_frame, colors["white"]);
 }
 
 /*--------------------*/
